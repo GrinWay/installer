@@ -1,0 +1,34 @@
+{
+    "name": "grinway/installer",
+    "autoload": {
+        "psr-4": {
+            "GrinWay\\Installer\\": "src/"
+        }
+    },
+	"version":      "1.0.0",
+    "type":         "composer-plugin",
+    "extra": {
+		"class": "GrinWay\\Installer\\Installer"
+	},
+    "description":	"GrinWay Composer Plugin.",
+    "authors": [
+        {
+            "name":			"Grigory Koblitskiy",
+			"email":		"grin180898@mail.ru"
+        }
+    ],
+    "keywords": ["grinway", "grinway/installer"],
+    "license": "MIT",
+    "require": {
+        "php": ">=8",
+        "composer-plugin-api": "^2.0"
+    },
+    "require-dev": {
+		"composer/composer": "^2.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "grinway/installer": true
+        }
+    }
+}
