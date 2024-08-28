@@ -7,9 +7,12 @@ use Composer\IO\IOInterface;
 use Composer\Plugin\PluginInterface;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\Script\ScriptEvents;
+use Composer\Script\Event;
 
 class Installer implements PluginInterface, EventSubscriberInterface
 {
+	public const CONFIG_KEY = 'grin_way_installer';
+	
 	private Composer $composer;
 	private IOInterface $io;
 	private readonly string $projectDir;
@@ -41,62 +44,62 @@ class Installer implements PluginInterface, EventSubscriberInterface
         ];
     }
 	
-	public function preInstallCmd(): void
+	public function preInstallCmd(Event $event): void
 	{
 	}
 	
-	public function postInstallCmd(): void
+	public function postInstallCmd(Event $event): void
 	{
-		$this->post();
+		$this->post($event);
 	}
 	
-	public function postUpdateCmd(): void
+	public function postUpdateCmd(Event $event): void
 	{
-		$this->post();
+		$this->post($event);
 	}
 	
-	private function post(): void {
-        $processedPackages = [];
+	private function post(Event $event): void {
+		$getDefaultExtra = $this->getDefaultExtra(...);
 		
-		$localRepository = $this->composer->getRepositoryManager()->getLocalRepository();
-		$packages = $localRepository->getPackages();
-		
-		foreach($packages as $package) {
-			$packageName = $package->getName();
-			// Avoid handling duplicates
-			if (isset($processedPackages[$packageName])) {
-                continue;
-            }
-            $processedPackages[$packageName] = true;
-			
-			if (\str_starts_with(\strtolower($packageName), 'grinway')) {
-				$packageAbsDir = $this->composer->getInstallationManager()->getInstallPath($package);
-				$packageType = $this->getPackageTypeWithoutOwnerAndBundleSuffix($packageName);
-				if (null === $packageType) {
-					continue;
-				}
-				$packageTypeLowerCase = \strtolower($packageType);
-				$packageAbsDir = \rtrim($packageAbsDir, '/\\');
-				
-				$relativePath = \sprintf('config/packages/grin_way_%s.yaml', $packageTypeLowerCase);
-				$fromPath = \sprintf(
-					'%s/%s',
-					$packageAbsDir,
-					$relativePath,
-				);
-				$toPath = \sprintf(
-					'%s/%s',
-					$this->projectDir,
-					$relativePath,
-				);
-				$outputOptions = $this->copyNotOverwrite(
-					fromPath: $fromPath,
-					toPath: $toPath,
-					appendOutputMessage: static fn($resultCode) => 0 === $resultCode ? \sprintf('%sFor package: "%s"', \PHP_EOL, $packageName) : '',
-				);
-				$this->dump($outputOptions);
+		$extraGrinWayIsEnabled = $this->extraGetter(
+			$event,
+			true, // When change default -> change docs default `docs/configuration_with_composer_extra.md`
+			self::CONFIG_KEY,
+			'enable',
+		);
+		// main plugin predicat
+		if (true === $extraGrinWayIsEnabled) {
+
+			$extraGrinWayIsEnabledToCopyBundlesConfigs = $this->extraGetter(
+				$event,
+				true, // When change default -> change docs default `docs/configuration_with_composer_extra.md`
+				self::CONFIG_KEY,
+				'enable_copy_bundles_configs_to_project_dir',
+			);
+			if (true === $extraGrinWayIsEnabledToCopyBundlesConfigs) {
+				$this->copyBundlesExampleConfigsToProjectDirToMakeItWork($event);
 			}
+			
+			//... other future config
 		}
+	}
+	
+	private function extraGetter(Event $event, mixed $default, string|int...$keys): mixed {
+		$extra = $event->getComposer()->getPackage()->getExtra();
+		
+		$nestedExtra = $extra;
+		foreach($keys as $key) {
+			if (!isset($nestedExtra[$key])) {
+				return $default;
+			}
+			// unpack
+			$nestedExtra = $nestedExtra[$key];
+		}
+		return $nestedExtra;
+	}
+	
+	private function getDefaultExtra(string|int...$key): mixed {
+		return 'TODO';
 	}
 	
 	private function copyNotOverwrite(string $fromPath, string $toPath, ?callable $prependOutputMessage = null, ?callable $appendOutputMessage = null): ?array {
@@ -189,5 +192,49 @@ class Installer implements PluginInterface, EventSubscriberInterface
 	
 	private function blueColorWrap(string $string): string {
 		return \sprintf('%s%s%s', "\033[0;36m", $string, "\033[0m");
+	}
+	
+	private function copyBundlesExampleConfigsToProjectDirToMakeItWork(Event $event): void {
+		$processedPackages = [];
+		
+		$localRepository = $this->composer->getRepositoryManager()->getLocalRepository();
+		$packages = $localRepository->getPackages();
+		
+		foreach($packages as $package) {
+			$packageName = $package->getName();
+			// Avoid handling duplicates
+			if (isset($processedPackages[$packageName])) {
+                continue;
+            }
+            $processedPackages[$packageName] = true;
+			
+			if (\str_starts_with(\strtolower($packageName), 'grinway')) {
+				$packageAbsDir = $this->composer->getInstallationManager()->getInstallPath($package);
+				$packageType = $this->getPackageTypeWithoutOwnerAndBundleSuffix($packageName);
+				if (null === $packageType) {
+					continue;
+				}
+				$packageTypeLowerCase = \strtolower($packageType);
+				$packageAbsDir = \rtrim($packageAbsDir, '/\\');
+				
+				$relativePath = \sprintf('config/packages/grin_way_%s.yaml', $packageTypeLowerCase);
+				$fromPath = \sprintf(
+					'%s/%s',
+					$packageAbsDir,
+					$relativePath,
+				);
+				$toPath = \sprintf(
+					'%s/%s',
+					$this->projectDir,
+					$relativePath,
+				);
+				$outputOptions = $this->copyNotOverwrite(
+					fromPath: $fromPath,
+					toPath: $toPath,
+					appendOutputMessage: static fn($resultCode) => 0 === $resultCode ? \sprintf('%sFor package: "%s"', \PHP_EOL, $packageName) : '',
+				);
+				$this->dump($outputOptions);
+			}
+		}
 	}
 }
