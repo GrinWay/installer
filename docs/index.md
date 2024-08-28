@@ -5,5 +5,8 @@ grinway/installer
 
 :wrench: `grinway/installer` creates nothing!
 
-It just copies bundle configuration files to your `kernel.project_dir`\
-Particular configuration always places to a certain bundle
+Only a certain bundle(package) knows about its own configuration.
+
+It just copies bundles' configurations by the path:\
+`config/packages/grin_way_<PACKAGE_NAME_WITHOUT_OWNER_AND_-bundle>.<EXTENSION>`\
+to your `kernel.project_dir/TO_THE_SAME_HIERARCHY`.
