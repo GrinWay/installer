@@ -27,8 +27,8 @@
 		"composer/composer": "^2.0"
     },
     "config": {
-        "allow-plugins": {
-            "grinway/installer": true
-        }
+		"allow-plugins": {
+			"grinway/installer": true
+		}
     }
 }
